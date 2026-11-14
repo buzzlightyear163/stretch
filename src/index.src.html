@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="en" data-theme="frost">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>STRETCH — buys the final stretch</title>
+<meta name="description" content="Your Final Stretch tab, on autopilot. Every coin about to migrate gets checked. Only the clean ones get bought.">
+<meta name="theme-color" content="#e6ebf2">
+<meta property="og:title" content="STRETCH — buys the final stretch"><meta property="og:description" content="Your Final Stretch tab, on autopilot. Every coin about to migrate gets checked. Only the clean ones get bought.">
+<meta property="og:type" content="website"><meta property="og:image" content="/og.png">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="/og.png">
+<link rel="icon" href="/fav.png"><link rel="apple-touch-icon" href="/fav.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+<style>
+/* ===== STRETCH: session layout, the board is the hero ===== */
+:root{--w:1200px}
+body::before{opacity:.28}
+.top{background:color-mix(in srgb,var(--bg) 84%,transparent)} .top .wrap{height:64px}
+.nav{margin:0 0 0 40px}
+.top .live{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);margin-left:auto}
+.top .live b{color:var(--ink);font-weight:500}
+.dot{width:7px;height:7px;background:var(--faint);display:inline-block;flex:none}
+.dot.on{background:var(--accent);animation:blink 1.6s steps(1) infinite} .dot.red{background:var(--red)}
+.k{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.hint{font-size:12px;color:var(--muted);min-height:1.6em;margin-top:10px} .hint.err{color:var(--red)}
+a.lk{color:var(--muted);text-decoration:none;font-size:12px} a.lk:hover{color:var(--accent)}
+
+/* stage: hero + board share one canvas, so the object's long shadow runs under the board */
+.stage{position:relative;overflow:hidden}
+.stage canvas.bg{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.hero3{position:relative;z-index:1;padding:34px 0 30px}
+.hero3 .wrap{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:40px;align-items:center}
+.hero3 h1{font-size:clamp(44px,6vw,86px);font-weight:400;letter-spacing:-.055em;line-height:.95;margin:20px 0 20px;white-space:nowrap}
+.hero3 h1 b{font-weight:700}
+.hero3 .lede{color:var(--muted);font-size:16px;line-height:1.6;max-width:72ch}
+.hero3 .lede b{color:var(--ink);font-weight:500}
+.vis{height:230px}
+
+/* the board: "in the stretch" */
+.board{position:relative;z-index:1;padding:0 0 70px}
+.bwin{background:var(--paper);border:1.5px solid var(--line);box-shadow:6px 6px 0 var(--shadow)}
+.bhd{display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:12px 18px;border-bottom:1.5px solid var(--line)}
+.bhd .cmd{font-size:13px;color:var(--muted);white-space:nowrap} .bhd .cmd b{color:var(--ink);font-weight:500}
+.bhd .fl{display:flex;align-items:center;gap:6px;margin-left:auto}
+.bhd .fl .k{margin:0 6px 0 14px}
+.bhd .chip{border:1px solid var(--hair);font-size:11.5px}
+.th,.r{display:grid;grid-template-columns:30px minmax(150px,1.15fr) minmax(250px,2fr) 84px 108px 104px 78px 92px;gap:16px;align-items:center;padding:0 18px}
+.th{height:34px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--hair)}
+.r{height:46px;border-bottom:1px solid var(--hair);font-size:13px;cursor:pointer;position:relative;transition:background .15s}
+.r:hover{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+.r.sel::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;background:var(--accent)}
+.r .n{color:var(--faint);font-size:11.5px}
+.r .coin{display:flex;align-items:baseline;gap:8px;min-width:0}
+.sym{font-weight:700;font-size:13.5px}
+.nm{color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src{font-size:9.5px;letter-spacing:.08em;color:var(--muted);border:1px solid var(--hair);padding:0 .45em;line-height:1.6;flex:none}
+.up{color:var(--accent)} .dn{color:var(--red)}
+.sub{color:var(--muted);font-size:11.5px}
+/* curve bar: 0-85% compressed on the left, the stretch (85-100) one segment per percent, finish checkered */
+.cv{display:flex;align-items:center;gap:12px}
+.pb{flex:1;display:flex;gap:2px;height:16px;padding:2px;background:var(--screen)}
+.pb .a{flex:0 0 22%;background:var(--seg);opacity:.42}
+.pb .s{flex:1;display:flex;gap:2px}
+.pb .s i{flex:1;background:transparent;box-shadow:inset 0 0 0 1px rgba(111,155,255,.16)}
+.pb .s i.f{background:var(--seg);box-shadow:none}
+.pb .s i.h{background:var(--seg);box-shadow:none;animation:blink .9s steps(1) infinite}
+.pb .s i.fin{flex:1.6;box-shadow:none;background:repeating-conic-gradient(var(--chkK) 0 25%,var(--chkW) 0 50%) 0 0/6px 6px}
+.cv .pc{width:52px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.rt{display:inline-block;width:64px;text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.08em;padding:3px 0;line-height:1.3}
+.rt.clear{background:var(--accent);color:#fff} .rt.watch{box-shadow:inset 0 0 0 1.5px var(--muted);color:var(--ink);font-weight:600} .rt.fail{background:var(--red);color:#fff}
+.rt.lock{box-shadow:inset 0 0 0 1.5px var(--accent);color:var(--accent);background:repeating-linear-gradient(135deg,transparent 0 4px,color-mix(in srgb,var(--accent) 10%,transparent) 4px 8px)}
+.eng{font-size:12px} .eng.buy{color:var(--accent);font-weight:600} .eng.wait{color:var(--muted)} .eng.skip{color:var(--faint)} .eng.lock{color:var(--accent)}
+.r.mig{background:color-mix(in srgb,var(--accent) 10%,transparent)} .r.mig .pc{color:var(--accent)}
+.flow{display:flex;align-items:center;gap:7px}
+.flow .fb{width:34px;height:6px;background:color-mix(in srgb,var(--red) 55%,transparent);display:flex}
+.flow .fb i{background:var(--accent);height:100%}
+.bft{display:flex;gap:22px;padding:11px 18px;font-size:11.5px;color:var(--muted)}
+.bft b{color:var(--ink);font-weight:500} .bft .rg{margin-left:auto}
+.empty{padding:30px 18px;color:var(--muted);font-size:13px;line-height:1.8}
+
+/* sessions: sticky command rail left, output right */
+.sess{position:relative;z-index:1;border-top:1px solid var(--hair)}
+.sess>.wrap{display:grid;grid-template-columns:300px minmax(0,1fr);gap:72px;padding-top:110px;padding-bottom:110px}
+.rail{position:sticky;top:100px;align-self:start}
+.rail .n{font-size:11px;letter-spacing:.16em;color:var(--faint);margin-bottom:14px}
+.rail .cmd{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .rail .cmd b{color:var(--ink);font-weight:500}
+.rail h2{font-size:clamp(28px,3vw,38px);font-weight:500;letter-spacing:-.035em;line-height:1.08;margin:16px 0}
+.rail p{color:var(--muted);font-size:14px;line-height:1.7}
+.rail .ctl{margin-top:26px;padding-top:20px;border-top:1px solid var(--hair);display:flex;flex-direction:column;gap:12px}
+.out{min-width:0}
+
+/* 02 coin check */
+.chead{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 30px;align-items:end;padding-bottom:26px;border-bottom:1px solid var(--hair)}
+.chead .cid{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.chead .sym{font-size:clamp(34px,4.4vw,56px);letter-spacing:-.045em;line-height:1}
+.chead .nm{font-size:14px}
+.chead .big{grid-column:1/-1}
+.chead .big .pb{height:30px;padding:3px;gap:3px} .chead .big .pb .s{gap:3px} .chead .big .pc{width:auto;font-size:28px;letter-spacing:-.03em}
+.cmeta{grid-column:1/-1;display:flex;gap:26px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)} .cmeta b{color:var(--ink);font-weight:500}
+.checks{border-bottom:1px solid var(--hair)}
+.ck{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:14px;align-items:center;padding:15px 0;border-top:1px solid var(--hair);font-size:14px}
+.ck:first-child{border-top:0}
+.ck .m{width:22px;height:22px;display:grid;place-items:center;font-size:13px;font-weight:700}
+.ck.ok .m{background:var(--accent);color:#fff} .ck.no .m{box-shadow:inset 0 0 0 1.5px var(--red);color:var(--red)} .ck.hard .m{background:var(--red);color:#fff;box-shadow:none}
+.ck .v{color:var(--muted);font-size:12.5px;text-align:right} .ck.hard .v{color:var(--red)}
+.verdict{display:flex;align-items:center;gap:16px;padding:22px 0 0;font-size:14.5px;line-height:1.6}
+.links{display:flex;gap:20px;margin-top:18px}
+
+/* 03 log */
+.bigstats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.bigstats>div{padding:22px 22px 24px 0} .bigstats>div+div{padding-left:22px;border-left:1px solid var(--hair)}
+.bigstats .v{font-size:clamp(30px,3.4vw,46px);font-weight:500;letter-spacing:-.04em;margin-top:10px;line-height:1}
+.bigstats .s{font-size:11.5px;color:var(--muted);margin-top:8px}
+.feature{display:grid;grid-template-columns:auto 1fr auto;gap:8px 28px;align-items:end;padding:30px 0;border-bottom:1px solid var(--hair)}
+.feature .big{font-size:clamp(36px,4.6vw,60px);font-weight:600;letter-spacing:-.045em;line-height:.95}
+.feature .what{font-size:14px;line-height:1.6} .feature .what span{color:var(--muted)}
+.feature.wait{display:block;color:var(--faint);font-size:13px}
+.lg{display:grid;grid-template-columns:56px minmax(110px,1fr) 66px minmax(118px,1fr) 128px 70px;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--hair);font-size:12.5px}
+.lg.th2{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:12px 0 10px}
+.lg .t{color:var(--faint)} .lg .rt{width:58px;font-size:10px}
+.res.mig{color:var(--accent);font-weight:600} .res.died{color:var(--red)} .res.live{color:var(--muted)}
+.logwrap{max-height:520px;overflow:auto;scrollbar-width:thin}
+
+/* 04 engine */
+.wbox{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 18px;border:1px solid var(--line);background:color-mix(in srgb,var(--paper) 70%,transparent)}
+.wbox code{font-family:var(--mono);font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.elist{margin-top:14px;border-top:1px solid var(--hair)}
+.er{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:14px;align-items:center;padding:13px 0;border-bottom:1px solid var(--hair);font-size:13px}
+.er .side{font-size:10.5px;font-weight:700;letter-spacing:.1em}
+.er .side.buy{color:var(--accent)} .er .side.sell{color:var(--ink)} .er .side.bb{color:var(--accent)}
+.ttl{display:flex;align-items:center;gap:12px;margin-top:40px}
+.tag.beta{color:var(--accent);border-color:var(--accent)}
+
+/* 05 holders */
+.inbar{display:flex;border:1.5px solid var(--line);background:var(--paper);height:58px;box-shadow:6px 6px 0 var(--shadow)}
+.inbar .inl{flex:1;display:flex;align-items:center;padding:0 18px;font-size:13.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inbar .inl b{color:var(--ink);font-weight:500}
+.inbar button{border:0;background:var(--accent);color:#fff;font:600 13.5px var(--mono);padding:0 24px;cursor:pointer;display:flex;align-items:center;gap:10px}
+.gate{display:grid;grid-template-columns:1fr 1fr;margin-top:40px;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.gate>div{padding:22px 24px 24px 0} .gate>div+div{padding-left:24px;border-left:1px solid var(--hair)}
+.gate .big{font-size:clamp(28px,3vw,40px);font-weight:500;letter-spacing:-.04em;margin:10px 0 6px}
+.gate p{color:var(--muted);font-size:13px;line-height:1.6}
+
+/* 06 token */
+.split{display:flex;height:34px;border:1.5px solid var(--line);margin:0 0 18px}
+.split div{background:repeating-linear-gradient(90deg,var(--c) 0 6px,transparent 6px 8px)}
+.rows div{display:flex;gap:16px;padding:9px 0;border-bottom:1px dashed var(--hair);font-size:13.5px} .rows b{width:5.5em;flex:none}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);margin-top:40px}
+.facts>div{padding:18px 18px 20px 0;min-width:0} .facts>div+div{padding-left:18px;border-left:1px solid var(--hair)} .facts .v{font-size:16px;margin-top:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.callout{display:flex;align-items:center;gap:24px;justify-content:space-between;margin-top:40px;padding:24px 26px;border:1px solid var(--line);background:color-mix(in srgb,var(--paper) 70%,transparent)}
+.callout p{font-size:14.5px;line-height:1.6;max-width:50ch} .callout p span{color:var(--muted)}
+.cabox{display:flex;align-items:center;gap:12px;margin-top:26px;font-size:12px;color:var(--muted)}
+.cabox code{color:var(--ink);background:var(--paper);border:1px dashed var(--hair);padding:.45em .7em;font-family:var(--mono);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.out .man summary{padding:20px 0}
+
+footer.f2{position:relative;z-index:1;border-top:1px solid var(--hair);padding:120px 0 50px;overflow:hidden}
+footer.f2 .big{font-size:clamp(46px,9vw,136px);letter-spacing:-.06em;line-height:.9;font-weight:400} footer.f2 .big b{font-weight:700}
+footer.f2 .fine{display:flex;gap:24px;flex-wrap:wrap;margin-top:60px;font-size:12px;color:var(--muted);border-top:1px solid var(--hair);padding-top:20px}
+
+@media (max-width:1100px){
+  .th,.r{grid-template-columns:24px minmax(120px,1fr) minmax(180px,1.6fr) 96px 70px 70px} .th .x1,.th .x2,.r .x1,.r .x2{display:none}
+}
+@media (max-width:980px){
+  .sess>.wrap{grid-template-columns:1fr;gap:30px;padding-top:80px;padding-bottom:80px} .rail{position:static}
+  .bigstats,.facts{grid-template-columns:1fr 1fr} .bigstats>div:nth-child(3),.facts>div:nth-child(3){padding-left:0;border-left:0}
+  .bigstats>div:nth-child(n+3),.facts>div:nth-child(n+3){border-top:1px solid var(--hair)}
+}
+@media (max-width:860px){
+  .hero3 h1{white-space:normal;font-size:clamp(40px,12.5vw,60px);margin:14px 0}
+  .hero3{padding:18px 0 22px} .bhd{padding:10px 12px;gap:8px 12px} .bhd .cmd{font-size:11px}
+  .bhd .fl{width:100%;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;margin-left:0} .bhd .fl::-webkit-scrollbar{display:none} .bhd .fl .k:first-child{margin-left:0} .bhd .chip{flex:none}
+  .top .live{display:none} .top .btn{margin-left:auto}
+  .hero3 .wrap{grid-template-columns:1fr} .vis{height:118px;order:-1}
+  .th{display:none}
+  .r{grid-template-columns:1fr 64px;grid-template-areas:"coin chk" "cv cv";height:auto;padding:12px 14px;gap:8px 12px}
+  .r .n,.r .x1,.r .x2,.r .x3,.r .eng{display:none} .r .coin{grid-area:coin} .r .cv{grid-area:cv} .r .ck2{grid-area:chk}
+  .bft .rg{display:none}
+  .lg{grid-template-columns:48px 1fr 62px 92px} .lg .x4,.lg .x5{display:none}
+  .feature{grid-template-columns:1fr} .callout{flex-direction:column;align-items:flex-start} .gate{grid-template-columns:1fr} .gate>div+div{padding-left:0;border-left:0;border-top:1px solid var(--hair)}
+  .inbar button span{display:none} .ck{grid-template-columns:24px 1fr} .ck .v{grid-column:2;text-align:left}
+  .chead{grid-template-columns:1fr} .rail .cmd{white-space:normal}
+}
+</style>
+</head>
+<body>
+
+<header class="top" id="top"><div class="wrap">
+  <a class="brand" href="#hero"><canvas id="logo"></canvas>stretch</a>
+  <nav class="nav"><a href="#live">live</a><a href="#log">log</a><a href="#engine">engine</a><a href="#docs">docs</a></nav>
+  <span class="live"><i class="dot" id="topDot"></i><span><b id="topN">0</b> in the stretch</span></span>
+  <a class="btn pri" id="buyTop" href="#token">buy $STRETCH</a>
+</div></header>
+
+<div class="stage" id="stage">
+  <canvas class="bg" id="stageBg"></canvas>
+  <section class="hero3" id="hero"><div class="wrap">
+    <div>
+      <div class="prompt"><span>anon@stretch ~ %</span> <span class="cmd" id="typed"></span><span class="cur"></span></div>
+      <h1>buys the final<br><b>stretch.</b></h1>
+      <p class="lede"><b>Your Final Stretch tab, on autopilot.</b> Only the clean ones get bought.</p>
+    </div>
+    <div class="vis" id="heroVis"></div>
+  </div></section>
+
+  <section class="board" id="live"><div class="wrap">
+    <div class="bwin">
+      <div class="bhd">
+        <span class="cmd">anon@stretch ~ % <b>stretch ls --curve 85..99</b></span>
+        <span class="lamp" id="lamp">connecting</span>
+        <div class="fl">
+          <span class="k">check</span><button class="chip on" data-g="all">all</button><button class="chip" data-g="clear">clear</button><button class="chip" data-g="watch">watch</button><button class="chip" data-g="fail">fail</button>
+          <span class="k">from</span><button class="chip on" data-s="all">both</button><button class="chip" data-s="pump">pump.fun</button><button class="chip" data-s="lab">launchlab</button>
+        </div>
+      </div>
+      <div class="th"><span>#</span><span>coin</span><span>curve · 85 → 100</span><span class="x1">mcap</span><span class="x2">holders 5m</span><span class="x3">flow 5m</span><span>check</span><span>engine</span></div>
+      <div id="rows"><div class="empty">reading the curve…</div></div>
+      <div class="bft"><span><b id="cN">0</b> in the stretch</span><span><b id="cC">0</b> clear</span><span><b id="cW">0</b> watch</span><span><b id="cF">0</b> fail</span><span class="rg" id="bftNote">sorted by curve · click a coin for its checks</span></div>
+    </div>
+  </div></section>
+</div>
+
+<section class="sess" id="coin"><div class="wrap">
+  <div class="rail">
+    <div class="n">02</div>
+    <div class="cmd">anon@stretch ~ % <b id="coinCmd">stretch check</b></div>
+    <h2>six checks. one call.</h2>
+    <p>Every coin past 85% gets the same six checks, refreshed live. All six pass: CLEAR. One miss: WATCH. Two misses, or a dev or bundle caught selling: FAIL.</p>
+    <div class="ctl"><span class="k">pick another</span><span class="sub">click any coin on the board above.</span></div>
+  </div>
+  <div class="out" id="coinOut"><div class="empty">pick a coin on the board.</div></div>
+</div></section>
+
+<section class="sess" id="log"><div class="wrap">
+  <div class="rail">
+    <div class="n">03</div>
+    <div class="cmd">anon@stretch ~ % <b>tail -f migrations.log</b></div>
+    <h2>did it make it?</h2>
+    <p>Every coin STRETCH graded in the stretch, what the engine did with it, and what happened next. Migrated, died, and how it traded after.</p>
+    <div class="ctl"><span class="lamp" id="logLamp">connecting</span><span class="sub" id="logSince"></span><span class="sub" id="ppLine">migrations feed: connecting</span></div>
+  </div>
+  <div class="out">
+    <div class="bigstats">
+      <div><div class="k">coins graded</div><div class="v" id="sLogged">0</div><div class="s" id="sLoggedS">&nbsp;</div></div>
+      <div><div class="k">engine buys</div><div class="v" id="sBought">0</div><div class="s" id="sBoughtS">&nbsp;</div></div>
+      <div><div class="k">buy hit rate</div><div class="v acc" id="sHit">–</div><div class="s" id="sHitS">bought, then migrated</div></div>
+      <div><div class="k">calls right</div><div class="v" id="sRight">–</div><div class="s" id="sRightS">buys that migrated + skips that died</div></div>
+    </div>
+    <div class="feature wait" id="feature">the next migration shows up here, big.</div>
+    <div class="lg th2"><span>time</span><span>coin</span><span>call</span><span class="x4">engine</span><span>result</span><span class="x5">after</span></div>
+    <div class="logwrap" id="logRows"><div class="empty">the log fills as coins enter the stretch.</div></div>
+  </div>
+</div></section>
+
+<section class="sess" id="engine"><div class="wrap">
+  <div class="rail">
+    <div class="n">04</div>
+    <div class="cmd">anon@stretch ~ % <b>stretch engine</b> <span class="tag beta">beta</span></div>
+    <h2>the engine.</h2>
+    <p>CLEAR at 85%+ means buy. After migration it sells. Profit buys back $STRETCH. In beta the trades run by hand from one public wallet, so every buy is on-chain for anyone to check.</p>
+  </div>
+  <div class="out">
+    <div class="wbox"><span class="k">engine wallet</span><code id="ew">posted here at launch</code><a class="lk" id="ewLink" href="#" hidden>solscan ↗</a></div>
+    <div class="ttl"><span class="k">what the engine does right now</span><span class="lamp" id="engLamp">connecting</span></div>
+    <div class="elist" id="engNow"></div>
+    <div class="ttl"><span class="k">engine trades</span><span class="lamp" id="txLamp">preview</span></div>
+    <div class="elist" id="engTx"></div>
+  </div>
+</div></section>
+
+<section class="sess" id="holders"><div class="wrap">
+  <div class="rail">
+    <div class="n">05</div>
+    <div class="cmd">anon@stretch ~ % <b>stretch gate --holders</b></div>
+    <h2>see it first.</h2>
+    <p>Hold $STRETCH and every CLEAR call shows up the second it fires. Everyone else sees it a little later.</p>
+  </div>
+  <div class="out">
+    <div class="inbar"><span class="inl" id="wLabel">no wallet connected</span><button id="connect">▶ <span id="connectTxt">connect wallet</span></button></div>
+    <div class="hint" id="gateHint">read-only: STRETCH only checks your $STRETCH balance. it never asks you to sign a transaction.</div>
+    <div class="gate">
+      <div><div class="k">everyone</div><div class="big"><span id="gateSec">20</span>s later</div><p>CLEAR calls unlock on the public board a few seconds after they fire.</p></div>
+      <div><div class="k">holders</div><div class="big acc">the second</div><p>Connect a wallet that holds $STRETCH and calls land as they fire. Balance is read on-chain, nothing else.</p></div>
+    </div>
+  </div>
+</div></section>
+
+<section class="sess" id="token"><div class="wrap">
+  <div class="rail">
+    <div class="n">06</div>
+    <div class="cmd">anon@stretch ~ % <b>stretch token</b></div>
+    <h2>profits buy it back.</h2>
+    <p>The engine trades the stretch. What it makes goes to one place.</p>
+    <div class="ctl"><div class="ctas" style="margin-top:0"><a class="btn pri" id="buy" href="#">buy on launchlab</a><a class="btn" id="xlink" href="#" hidden>follow on X</a></div></div>
+  </div>
+  <div class="out">
+    <div class="split"><div style="flex:1;--c:var(--accent)"></div></div>
+    <div class="rows"><div><b class="acc">100%</b>of engine profit buys back $STRETCH</div><div><b>on-chain</b>every engine buy, sell and buyback, from one public wallet</div></div>
+    <div class="facts">
+      <div><div class="k">ticker</div><div class="v">$STRETCH</div></div><div><div class="k">chain</div><div class="v">solana</div></div>
+      <div><div class="k">launch</div><div class="v">launchlab</div></div><div><div class="k">supply</div><div class="v">1,000,000,000</div></div>
+    </div>
+    <div class="cabox"><span>ca</span><code id="ca">posted here and on X at launch</code><button class="chip" id="copy" hidden>copy</button></div>
+    <div class="callout"><p>Your Final Stretch tab, on autopilot. <span>The checks are live today. Watch the log fill before you trust it.</span></p><a class="btn pri" href="#log">open the log</a></div>
+  </div>
+</div></section>
+
+<section class="sess" id="docs"><div class="wrap">
+  <div class="rail">
+    <div class="n">07</div>
+    <div class="cmd">anon@stretch ~ % <b>man stretch</b></div>
+    <h2>the fine print.</h2>
+    <p>What's live, what's beta, where the data comes from, and what it will never ask you for.</p>
+  </div>
+  <div class="out"><div class="man">
+    <details open><summary>is this financial advice?</summary><p>No. STRETCH shows what is happening on-chain and how its checks read it. It never tells you to buy, and a CLEAR coin can still dump after migration. That's why the log shows the after.</p></details>
+    <details><summary>what's live and what's beta?</summary><p>Live: the board, the six checks, the coin checklists and the migration log, read from public data every few seconds. Beta: the engine's buys and sells. For now they run by hand from one public wallet, so you can verify every trade.</p></details>
+    <details><summary>where does the data come from?</summary><p>Jupiter's public "about to graduate" feed for curve progress, holders, dev and top-10 share and 5-minute flow on pump.fun and Raydium LaunchLab (incl. bonk.fun). DexScreener for how a coin trades after migration. PumpPortal's free stream for migrations as they land. No API keys.</p></details>
+    <details><summary>how is a coin graded?</summary><p>Six checks: holders growing, dev hasn't sold, no bundle selling out, top 10 under 30%, more buys than sells in the last 5 minutes, and real unique buyers (8+ wallets in 5 minutes). All pass: CLEAR. One miss: WATCH. Two misses, or a dev or bundle caught selling while STRETCH watches: FAIL.</p></details>
+    <details><summary>what can't it do?</summary><p>It can't see the future. "Dev holds 0%" can also mean the dev never bought. A dev or bundle selling is caught from the moment STRETCH starts watching a coin, not before. The hit rate counts what the engine would have done, from the moment the log started.</p></details>
+    <details><summary>how does the holder gate work?</summary><p>Connect a wallet and STRETCH reads its $STRETCH balance on-chain. Holders see every CLEAR call the second it fires. Everyone else sees it a few seconds later. It never asks you to sign anything. Never paste a seed phrase or private key anywhere.</p></details>
+    <details><summary>will stretch DM me?</summary><p>Never. Anyone who does is not us.</p></details>
+  </div></div>
+</div></section>
+
+<footer class="f2"><div class="wrap">
+  <div class="big">buys the final <b>stretch.</b><span class="cur"></span></div>
+  <div class="ctas" style="margin-top:40px"><a class="btn pri" href="#live">open the board</a><a class="btn" href="#log">check the log</a></div>
+  <div class="fine"><span>$STRETCH · solana · raydium launchlab</span><span>not financial advice</span><span id="cafoot"></span></div>
+</div></footer>
+
+<script src="termkit.js"></script>
+<script src="lib/core.js"></script>
+<script>
+const CONFIG = {
+  ca: "",                 // $STRETCH contract address, posted at launch
+  x: "",                  // X profile link, e.g. https://x.com/StretchBuys
+  engineWallet: "",       // the public wallet the beta engine trades from
+  gateSeconds: 20,        // how much later non-holders see a CLEAR call
+  rpc: "https://solana-rpc.publicnode.com",
+  ticker: "$STRETCH", object: "bar", theme: document.documentElement.dataset.theme,
+};
+const T = TK.THEMES[CONFIG.theme], reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
+const short = a => a ? a.slice(0, 4) + "…" + a.slice(-4) : "";
+const usd = n => n == null ? "–" : n >= 1e6 ? "$" + (n / 1e6).toFixed(2) + "m" : n >= 1e3 ? "$" + (n / 1e3).toFixed(1) + "k" : "$" + Math.round(n);
+const ago = t => { if (!t) return ""; const s = Math.max(0, (Date.now() - t) / 1000); return s < 60 ? Math.round(s) + "s" : s < 3600 ? Math.round(s / 60) + "m" : Math.round(s / 3600) + "h"; };
+const clock = t => new Date(t).toTimeString().slice(0, 5);
+const coinUrl = c => c.lp === "pump.fun" ? "https://pump.fun/coin/" + c.mint : c.lp === "letsbonk.fun" ? "https://bonk.fun/token/" + c.mint : "https://raydium.io/launchpad/token/?mint=" + c.mint;
+const srcTag = c => c.src === "pump" ? "PUMP" : c.lp === "letsbonk.fun" ? "LAB·BONK" : "LAB";
+
+// ---------- CA, buy links, X ----------
+const buyUrl = () => "https://raydium.io/launchpad/token/?mint=" + CONFIG.ca;
+if (CONFIG.ca) { $("#ca").textContent = CONFIG.ca; $("#copy").hidden = false; $("#cafoot").textContent = "ca " + CONFIG.ca;
+  $("#copy").onclick = () => navigator.clipboard.writeText(CONFIG.ca).then(() => $("#copy").textContent = "copied").catch(() => {});
+  for (const s of ["#buy", "#buyTop"]) { $(s).href = buyUrl(); $(s).target = "_blank"; $(s).rel = "noopener"; } }
+else { $("#buy").removeAttribute("href"); $("#buy").textContent = "live at launch"; $("#buy").style.opacity = .6; }
+if (CONFIG.x) { $("#xlink").href = CONFIG.x; $("#xlink").hidden = false; $("#xlink").target = "_blank"; }
+if (CONFIG.engineWallet) { $("#ew").textContent = CONFIG.engineWallet; $("#ewLink").hidden = false; $("#ewLink").href = "https://solscan.io/account/" + CONFIG.engineWallet; $("#ewLink").target = "_blank"; }
+$("#gateSec").textContent = CONFIG.gateSeconds;
+
+// ---------- logo + stage ----------
+{ const g = TK.OBJECTS[CONFIG.object]({ ticker: CONFIG.ticker }), c = $("#logo"), k = 2;
+  c.width = g.w * k; c.height = g.h * k; TK.draw(c.getContext("2d"), g, { theme: T, cell: k, x: 0, y: 0, shadow: false });
+  c.style.width = Math.round(26 * g.w / g.h) + "px"; c.style.height = "26px"; }
+function drawStage() {
+  const st = $("#stage"), c = $("#stageBg"), d = devicePixelRatio || 1, r = st.getBoundingClientRect(), a = $("#heroVis").getBoundingClientRect();
+  c.width = r.width * d; c.height = r.height * d; const x = c.getContext("2d"); x.scale(d, d); x.imageSmoothingEnabled = false;
+  const g = TK.OBJECTS[CONFIG.object]({ ticker: CONFIG.ticker });
+  const cell = Math.max(3, Math.floor(Math.min(a.width * .86 / g.w, a.height * .86 / g.h)));
+  TK.draw(x, g, { theme: T, cell, x: a.left - r.left + (a.width - g.w * cell) * .5, y: a.top - r.top + (a.height - g.h * cell) * .5, shadowLen: 2400 });
+}
+let stageH = 0; addEventListener("resize", drawStage); document.fonts.ready.then(drawStage);
+{ const cmd = "stretch --live", el = $("#typed"); if (reduce) el.textContent = cmd;
+  else { let i = 0; const t = setInterval(() => { el.textContent = cmd.slice(0, ++i); if (i >= cmd.length) clearInterval(t); }, 70); } }
+
+// ---------- data: our API (shared log) -> Jupiter direct (log on this device) -> preview ----------
+let DATA = null, MODE = "connecting", HOLDER = false, SEL = null, FIRST = true;
+const COINS = {}, MIGS = [];
+const filt = { g: "all", s: "all" };
+const LS = "stretch:state:v1";
+const LOCAL = (() => { try { return JSON.parse(localStorage.getItem(LS)) || CORE.newState(); } catch (e) { return CORE.newState(); } })();
+const saveLocal = () => { try { localStorage.setItem(LS, JSON.stringify(LOCAL)); } catch (e) {} };
+
+async function viaApi() {
+  if (location.protocol === "file:") throw 0;
+  const r = await fetch("/api/stretch", { cache: "no-store" }); if (!r.ok) throw 0;
+  const j = await r.json(); if (!j || !j.stretch) throw 0; return j;
+}
+async function viaJupiter() {
+  const r = await fetch(CORE.GEMS, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(CORE.gemsBody()) }); if (!r.ok) throw 0;
+  const t = CORE.tick(LOCAL, await r.json());
+  if (Date.now() - (LOCAL.lastOut || 0) > 60000) { LOCAL.lastOut = Date.now(); const m = CORE.pendingOutcomes(LOCAL);
+    if (m.length) try { CORE.applyOutcomes(LOCAL, await fetch("https://api.dexscreener.com/tokens/v1/solana/" + m.join(",")).then(x => x.json())); } catch (e) {} }
+  saveLocal();
+  return { t: Date.now(), source: "jupiter", storage: "device", since: LOCAL.since, stretch: t.stretch, graduated: t.graduated, log: CORE.logList(LOCAL, 60), stats: CORE.stats(LOCAL) };
+}
+async function pull() {
+  try { DATA = await viaApi(); MODE = "live"; }
+  catch (e) { try { DATA = await viaJupiter(); MODE = "live"; } catch (e2) { DATA = preview(); MODE = "preview"; } }
+  for (const c of DATA.stretch) COINS[c.mint] = c;
+  if (FIRST || !SEL) { const pick = DATA.stretch.find(c => c.g === "clear") || DATA.stretch[0]; if (pick) SEL = pick.mint; FIRST = false; }
+  render();
+}
+
+// ---------- preview (labeled preview; only when no live source answers) ----------
+const PV = { coins: null, log: null };
+function preview() {
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const NAMES = [["GLORP", "glorp"], ["MOTH", "moth in the lamp"], ["KAIRO", "kairo"], ["PEBL", "pebble"], ["WOMP", "womp womp"], ["FRIZ", "frizzle"], ["BONKO", "bonko"], ["TUBA", "tuba guy"], ["NUBS", "nubs"], ["SKRT", "skrt"], ["LOAF", "bread loaf"], ["ZOOP", "zoop"], ["GRUB", "grub"], ["MIMO", "mimo"], ["DRIP", "drip cat"], ["YAWN", "yawn"], ["PUDL", "puddle"], ["HONK", "honk"]];
+  if (!PV.coins) PV.coins = NAMES.map(([sym, name], i) => { const bad = i % 3 === 2, meh = i % 3 === 1;
+    return { mint: "PREVIEW" + sym + "x".repeat(30), sym, name, lp: i % 4 === 3 ? "raydium-launchlab" : "pump.fun", src: i % 4 === 3 ? "lab" : "pump", p: rnd(85, 98.8), mcap: 0, holders: Math.round(rnd(140, 520)), created: Date.now() - rnd(10, 90) * 60e3,
+      h5: +(bad ? -rnd(.5, 4) : rnd(.4, 6)).toFixed(1), b5: 0, s5: 0, t5: 0, top10: +(bad ? rnd(31, 45) : meh ? rnd(24, 33) : rnd(15, 27)).toFixed(1), dev: +(bad && i % 2 ? 0 : rnd(.5, 6)).toFixed(1), bot: +(bad ? rnd(12, 30) : rnd(1, 9)).toFixed(1), drift: bad ? rnd(-.1, .08) : rnd(.03, .2) }; });
+  for (const c of PV.coins) { c.p = Math.max(85, Math.min(99.6, c.p + c.drift * rnd(.2, 1.6))); if (c.p >= 99.6) c.p = rnd(85, 86.5);
+    const vt = 1073e6 - 793.1e6 * c.p / 100; c.mcap = 30 * 1073e6 / vt / vt * 1e9 * 68;
+    c.b5 = Math.round(rnd(8, 60)); c.s5 = Math.round(c.b5 * (c.drift < .03 ? rnd(1.05, 1.7) : rnd(.4, .95))); c.t5 = Math.round(c.drift < .03 ? rnd(3, 9) : rnd(9, 40)); }
+  const stretch = PV.coins.map(c => { const gr = CORE.grade(c); return Object.assign({}, c, { p: Math.round(c.p * 10) / 10, g: gr.g, checks: gr.checks, pass: gr.pass, eng: CORE.engine(gr.g) }); }).sort((a, b) => b.p - a.p);
+  if (!PV.log) { const now = Date.now(); PV.log = [["GLINT", "migrated", 1, 34.2], ["SOAP", "died", 0], ["TRAM", "migrated", 1, -12.5], ["OWLY", "migrated", 1, 61.8], ["BRRR", "died", 0], ["KIWI", "live", 1], ["FOGG", "died", 1], ["MUSH", "migrated", 0, 8.1]]
+    .map(([sym, status, b, after], i) => ({ mint: "PREVIEWLOG" + sym, sym, name: sym.toLowerCase(), src: i % 3 ? "pump" : "lab", lp: i % 3 ? "pump.fun" : "raydium-launchlab", first: now - (i + 1) * 7 * 60e3, firstP: 85 + i, lastP: 86 + i, firstG: b ? "clear" : i % 2 ? "fail" : "watch",
+      bought: b ? now - (i + 1) * 7 * 60e3 + 30e3 : 0, boughtP: 88 + i * .7, status, migratedAt: status === "migrated" ? now - i * 6 * 60e3 : null, diedAt: status === "died" ? now - i * 5 * 60e3 : null, after })); }
+  const L = PV.log, wins = L.filter(e => e.bought && e.status === "migrated").length, losses = L.filter(e => e.bought && e.status === "died").length, skips = L.filter(e => !e.bought && e.status === "died").length, res = L.filter(e => e.status !== "live").length;
+  return { t: Date.now(), source: "preview", storage: "preview", since: Date.now() - 3600e3, stretch, graduated: [], log: L,
+    stats: { logged: L.length, bought: L.filter(e => e.bought).length, live: 1, resolved: res, wins, losses, goodSkips: skips, missed: 1, migrated: 4, died: 3, hitRate: Math.round(100 * wins / (wins + losses)), callsRight: Math.round(100 * (wins + skips) / res), heldAfter: 67 } };
+}
+
+// ---------- render ----------
+function bar(p) {
+  const n = Math.floor(p - 85), segs = Array.from({ length: 14 }, (_, i) => `<i class="${i < n ? "f" : i === n ? "h" : ""}"></i>`).join("");
+  return `<div class="pb"><i class="a"></i><span class="s">${segs}<i class="fin"></i></span></div>`;
+}
+const logBy = () => Object.fromEntries((DATA.log || []).map(e => [e.mint, e]));
+function lockLeft(c, LB) { // seconds a non-holder still waits for this CLEAR call
+  if (!CONFIG.ca || HOLDER || c.g !== "clear" || MODE !== "live") return 0;
+  const e = LB[c.mint]; if (!e || !e.bought) return 0;
+  const left = CONFIG.gateSeconds * 1000 - (Date.now() - e.bought); return left > 0 ? Math.ceil(left / 1000) : 0;
+}
+function row(c, i, LB) {
+  const lock = lockLeft(c, LB), mig = MIGS.some(m => m.mint === c.mint && Date.now() - m.t < 60e3);
+  const g = lock ? "lock" : c.g, chip = lock ? "HOLDERS" : c.g.toUpperCase();
+  const eng = mig ? ["buy", "migrated · selling"] : lock ? ["lock", "unlocks in " + lock + "s"] : c.eng === "buy" ? ["buy", "buying"] : c.eng === "wait" ? ["wait", "waiting"] : ["skip", "skip"];
+  const bs = c.b5 == null ? 0 : c.b5 / Math.max(1, c.b5 + c.s5);
+  return `<div class="r${mig ? " mig" : ""}${c.mint === SEL ? " sel" : ""}" data-m="${esc(c.mint)}"><span class="n">${String(i + 1).padStart(2, "0")}</span>
+    <span class="coin"><span class="sym">$${esc(c.sym)}</span><span class="nm">${esc(c.name)}</span><span class="src">${srcTag(c)}</span></span>
+    <span class="cv">${bar(c.p)}<span class="pc">${mig ? "100%" : c.p.toFixed(1) + "%"}</span></span>
+    <span class="x1">${usd(c.mcap)}</span>
+    <span class="x2">${c.holders ?? "–"} ${c.h5 == null ? '<span class="sub">idle</span>' : `<span class="${c.h5 >= 0 ? "up" : "dn"}">${c.h5 > 0 ? "+" : ""}${c.h5}%</span>`}</span>
+    <span class="x3 flow">${c.b5 == null ? '<span class="sub">no trades</span>' : `<span class="fb"><i style="width:${Math.round(bs * 100)}%"></i></span><span class="sub">${c.b5}/${c.s5}</span>`}</span>
+    <span class="ck2"><span class="rt ${g}">${chip}</span></span>
+    <span class="eng ${eng[0]}">${eng[1]}</span></div>`;
+}
+function renderBoard(LB) {
+  const list = DATA.stretch.filter(c => (filt.s === "all" || c.src === filt.s) && (filt.g === "all" || c.g === filt.g));
+  $("#rows").innerHTML = list.slice(0, 20).map((c, i) => row(c, i, LB)).join("") ||
+    `<div class="empty">${DATA.stretch.length ? "nothing matches this filter right now." : "no coin is past 85% right now. the board fills the second one is."}</div>`;
+  const gs = DATA.stretch.map(c => c.g);
+  $("#cN").textContent = $("#topN").textContent = DATA.stretch.length;
+  $("#cC").textContent = gs.filter(g => g === "clear").length; $("#cW").textContent = gs.filter(g => g === "watch").length; $("#cF").textContent = gs.filter(g => g === "fail").length;
+  for (const id of ["#lamp", "#logLamp", "#engLamp"]) { $(id).textContent = MODE; $(id).classList.toggle("live", MODE === "live"); }
+  $("#topDot").classList.toggle("on", MODE === "live");
+  $("#bftNote").textContent = MODE === "live" ? "live · updated " + clock(DATA.t) + " · click a coin for its checks" : "preview data · click a coin for its checks";
+}
+function renderCoin(LB) {
+  const c = (SEL && (DATA.stretch.find(x => x.mint === SEL) || COINS[SEL])) || DATA.stretch[0];
+  if (!c) { $("#coinOut").innerHTML = `<div class="empty">no coin in the stretch right now.</div>`; return; }
+  const live = DATA.stretch.some(x => x.mint === c.mint), lock = lockLeft(c, LB), e = LB[c.mint];
+  $("#coinCmd").textContent = "stretch check $" + c.sym.toLowerCase();
+  const verdict = !live ? (e && e.status === "migrated" ? "Left the stretch: migrated." : "Left the stretch. Last read below.")
+    : lock ? `CLEAR call fired. Holders see it now, it unlocks here in ${lock}s.`
+    : c.g === "clear" ? `${c.pass} / 6 checks pass. The engine buys at ${c.p.toFixed(1)}% and sells after migration.`
+    : c.g === "watch" ? `${c.pass} / 6 checks pass. The engine waits for the last one to flip.`
+    : `${c.pass} / 6 checks pass. The engine skips this one.`;
+  const checks = lock ? c.checks.map(k => Object.assign({}, k, { ok: true, hard: false, v: "holders only · " + lock + "s" })) : c.checks;
+  $("#coinOut").innerHTML = `<div class="chead"><div class="cid"><span class="sym">$${esc(c.sym)}</span><span class="nm">${esc(c.name)}</span><span class="src">${srcTag(c)}</span></div>
+      <span class="rt ${lock ? "lock" : c.g}" style="width:84px;font-size:12px;padding:5px 0">${lock ? "HOLDERS" : c.g.toUpperCase()}</span>
+      <div class="big cv">${bar(c.p)}<span class="pc">${c.p.toFixed(1)}%</span></div>
+      <div class="cmeta"><span>mcap <b>${usd(c.mcap)}</b></span><span>holders <b>${c.holders ?? "–"}</b></span><span>5m <b>${c.b5 ?? 0} buys / ${c.s5 ?? 0} sells</b></span>${c.created ? `<span>age <b>${ago(c.created)}</b></span>` : ""}<span>curve <b>${esc(c.lp)}</b></span></div></div>
+    <div class="checks">${checks.map(k => `<div class="ck ${k.ok ? "ok" : k.hard ? "hard" : "no"}"><span class="m">${k.ok ? "✓" : "✗"}</span><span>${esc(k.name)}</span><span class="v">${esc(k.v)}</span></div>`).join("")}</div>
+    <div class="verdict"><span>${esc(verdict)}</span></div>
+    <div class="links">${c.mint.startsWith("PREVIEW") ? '<span class="sub">preview coin</span>' : `<a class="lk" target="_blank" rel="noopener" href="${coinUrl(c)}">${c.src === "pump" ? "pump.fun" : "launchlab"} ↗</a><a class="lk" target="_blank" rel="noopener" href="https://dexscreener.com/solana/${c.mint}">chart ↗</a><a class="lk" target="_blank" rel="noopener" href="https://solscan.io/token/${c.mint}">solscan ↗</a>`}</div>`;
+}
+function renderLog() {
+  const S = DATA.stats || {}, L = DATA.log || [];
+  $("#sLogged").textContent = S.logged ?? 0; $("#sLoggedS").textContent = (S.live ?? 0) + " still in the stretch";
+  $("#sBought").textContent = S.bought ?? 0; $("#sBoughtS").textContent = (S.wins ?? 0) + " migrated · " + (S.losses ?? 0) + " died";
+  $("#sHit").textContent = S.hitRate == null ? "–" : S.hitRate + "%"; $("#sHitS").textContent = S.hitRate == null ? "needs a finished buy" : "bought, then migrated" + (S.heldAfter != null ? " · " + S.heldAfter + "% held after" : "");
+  $("#sRight").textContent = S.callsRight == null ? "–" : S.callsRight + "%";
+  $("#logSince").textContent = MODE === "preview" ? "preview log" : "log since " + new Date(DATA.since).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) + (DATA.storage === "device" ? " · on this device" : "");
+  const res = e => e.status === "migrated" ? '<span class="res mig">migrated ✓</span>' : e.status === "died" ? '<span class="res died">died ✗</span>' : `<span class="res live">live · ${(+(e.lastP ?? e.firstP)).toFixed(1)}%</span>`;
+  $("#logRows").innerHTML = L.map(e => `<div class="lg"><span class="t">${clock(e.migratedAt || e.diedAt || e.first)}</span><span><span class="sym">$${esc(e.sym)}</span> <span class="src">${srcTag(e)}</span></span>
+    <span><span class="rt ${e.bought ? "clear" : e.firstG}">${(e.bought ? "clear" : e.firstG).toUpperCase()}</span></span>
+    <span class="x4 ${e.bought ? "eng buy" : "eng skip"}">${e.bought ? "bought at " + (+e.boughtP).toFixed(1) + "%" : "skipped"}</span>
+    <span>${res(e)}</span><span class="x5 ${e.after == null ? "sub" : e.after >= 0 ? "up" : "dn"}">${e.after == null ? (e.status === "migrated" ? "reading" : "–") : (e.after > 0 ? "+" : "") + e.after + "%"}</span></div>`).join("") ||
+    `<div class="empty">the log fills as coins enter the stretch.${MODE === "live" ? " first entries land within a minute." : ""}</div>`;
+  // feature: the latest migration (live stream first, then the log)
+  const lm = MIGS[0], le = L.filter(e => e.status === "migrated").sort((a, b) => b.migratedAt - a.migratedAt)[0], f = $("#feature");
+  if (lm && (!le || lm.t > le.migratedAt)) { const c = COINS[lm.mint], e = logBy()[lm.mint];
+    f.className = "feature"; f.innerHTML = `<div><div class="k" style="margin-bottom:12px">latest migration · ${ago(lm.t)} ago · live</div><div class="big">${c ? "$" + esc(c.sym) : short(lm.mint)}</div></div>
+      <div class="what">${e ? (e.bought ? '<span class="acc">engine bought it at ' + (+e.boughtP).toFixed(1) + "%</span>" : "engine skipped it") : "<span>wasn't on the board when it migrated</span>"}<br><span>pump.fun → pumpswap</span></div><a class="lk" target="_blank" rel="noopener" href="https://dexscreener.com/solana/${esc(lm.mint)}">chart ↗</a>`; }
+  else if (le) { f.className = "feature"; f.innerHTML = `<div><div class="k" style="margin-bottom:12px">latest migration from the log · ${clock(le.migratedAt)}</div><div class="big">$${esc(le.sym)}</div></div>
+      <div class="what">${le.bought ? '<span class="acc">engine bought it at ' + (+le.boughtP).toFixed(1) + "%</span>" : "engine skipped it"}<br><span>${le.after == null ? "after: reading" : "after: " + (le.after > 0 ? "+" : "") + le.after + "%"}</span></div><span></span>`; }
+}
+function renderEngine() {
+  const now = DATA.stretch.filter(c => c.g === "clear" && !lockLeft(c, logBy())).slice(0, 4).map(c => ({ side: "buy", t: `$${c.sym} at ${c.p.toFixed(1)}%`, s: "6 / 6 checks" }))
+    .concat((DATA.log || []).filter(e => e.bought && e.status === "migrated" && Date.now() - e.migratedAt < 30 * 60e3).slice(0, 3).map(e => ({ side: "sell", t: `$${e.sym} · migrated ${ago(e.migratedAt)} ago`, s: e.after == null ? "selling" : "after " + (e.after > 0 ? "+" : "") + e.after + "%" })));
+  $("#engNow").innerHTML = now.map(r => `<div class="er"><span class="side ${r.side}">${r.side.toUpperCase()}</span><span>${esc(r.t)}</span><span class="sub">${esc(r.s)}</span></div>`).join("") ||
+    `<div class="empty">nothing to do: no CLEAR coin in the stretch this second. the engine waits.</div>`;
+}
+function render() {
+  const LB = logBy();
+  renderBoard(LB); renderCoin(LB); renderLog(); renderEngine();
+  if (Math.abs(document.body.scrollHeight - stageH) > 2) { stageH = document.body.scrollHeight; drawStage(); }
+}
+
+// ---------- engine trades: read the public wallet on-chain ----------
+async function rpc(method, params) { const r = await fetch(CONFIG.rpc, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) }); const j = await r.json(); if (j.error) throw new Error(j.error.message); return j.result; }
+async function engineTx() {
+  const box = $("#engTx");
+  if (!CONFIG.engineWallet) {
+    const pv = [["buy", "$OWLY at 91.4%", "0.80 SOL"], ["sell", "$OWLY after migration", "1.21 SOL"], ["buyback", "$STRETCH", "0.41 SOL"], ["buy", "$TRAM at 88.2%", "0.80 SOL"], ["sell", "$TRAM after migration", "0.69 SOL"]];
+    box.innerHTML = pv.map(([s, t, v]) => `<div class="er"><span class="side ${s === "buyback" ? "bb" : s}">${s.toUpperCase()}</span><span>${t}</span><span class="sub">${v}</span></div>`).join("");
+    $("#txLamp").textContent = "preview · wallet posted at launch"; return;
+  }
+  try {
+    const W = CONFIG.engineWallet, sigs = await rpc("getSignaturesForAddress", [W, { limit: 12 }]), rows = [];
+    for (const s of sigs) { if (s.err) continue;
+      const tx = await rpc("getTransaction", [s.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }]); if (!tx) continue;
+      const keys = tx.transaction.message.accountKeys.map(k => k.pubkey || k), i = keys.indexOf(W), sol = i >= 0 ? (tx.meta.postBalances[i] - tx.meta.preBalances[i]) / 1e9 : 0;
+      const d = {}; for (const b of tx.meta.preTokenBalances || []) if (b.owner === W) d[b.mint] = (d[b.mint] || 0) - (b.uiTokenAmount.uiAmount || 0);
+      for (const b of tx.meta.postTokenBalances || []) if (b.owner === W) d[b.mint] = (d[b.mint] || 0) + (b.uiTokenAmount.uiAmount || 0);
+      const [mint, amt] = Object.entries(d).filter(([m]) => !m.startsWith("So1111")).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0] || [];
+      if (!mint || !amt) continue;
+      rows.push({ side: amt > 0 ? (mint === CONFIG.ca ? "buyback" : "buy") : "sell", mint, sol: Math.abs(sol), t: (s.blockTime || 0) * 1000, sig: s.signature });
+      await new Promise(r => setTimeout(r, 250)); }
+    const names = {}; try { const ps = await fetch("https://api.dexscreener.com/tokens/v1/solana/" + [...new Set(rows.map(r => r.mint))].slice(0, 30).join(",")).then(r => r.json()); for (const p of ps) names[p.baseToken.address] = p.baseToken.symbol; } catch (e) {}
+    box.innerHTML = rows.map(r => `<div class="er"><span class="side ${r.side === "buyback" ? "bb" : r.side}">${r.side.toUpperCase()}</span><span>$${esc(names[r.mint] || short(r.mint))} <span class="sub">${ago(r.t)} ago</span></span><a class="lk" target="_blank" rel="noopener" href="https://solscan.io/tx/${r.sig}">${r.sol.toFixed(2)} SOL ↗</a></div>`).join("") ||
+      `<div class="empty">no engine trades yet.</div>`;
+    $("#txLamp").textContent = "live · on-chain"; $("#txLamp").classList.add("live");
+  } catch (e) { $("#txLamp").textContent = "can't reach the chain right now"; }
+}
+
+// ---------- holder gate: read-only balance check ----------
+const provider = () => (window.phantom && window.phantom.solana) || window.solflare || window.backpack || window.solana || null;
+let WALLET = null;
+async function checkHolder() {
+  if (!WALLET) return;
+  if (!CONFIG.ca) { $("#wLabel").innerHTML = `<b>${short(WALLET)}</b>&nbsp;· gate opens at launch`; $("#gateHint").textContent = "until $STRETCH launches, everyone sees every call live."; return; }
+  try { const r = await rpc("getTokenAccountsByOwner", [WALLET, { mint: CONFIG.ca }, { encoding: "jsonParsed" }]);
+    const bal = (r.value || []).reduce((s, a) => s + (a.account.data.parsed.info.tokenAmount.uiAmount || 0), 0);
+    HOLDER = bal > 0;
+    $("#wLabel").innerHTML = `<b>${short(WALLET)}</b>&nbsp;· ${bal.toLocaleString("en-US", { maximumFractionDigits: 0 })} $STRETCH`;
+    $("#gateHint").textContent = HOLDER ? "holder: you see every CLEAR call the second it fires." : "no $STRETCH in this wallet. calls reach you " + CONFIG.gateSeconds + "s after holders.";
+    $("#gateHint").classList.toggle("err", !HOLDER);
+  } catch (e) { $("#gateHint").textContent = "couldn't read the balance right now. try again in a moment."; }
+  if (DATA) render();
+}
+$("#connect").onclick = async () => {
+  if (WALLET) { WALLET = null; HOLDER = false; $("#wLabel").textContent = "no wallet connected"; $("#connectTxt").textContent = "connect wallet"; $("#gateHint").classList.remove("err"); $("#gateHint").textContent = "disconnected."; if (DATA) render(); return; }
+  const p = provider();
+  if (!p) { $("#gateHint").textContent = "no solana wallet found in this browser. open the site in phantom, solflare or backpack."; $("#gateHint").classList.add("err"); return; }
+  try { const r = await p.connect(); WALLET = ((r && r.publicKey) || p.publicKey).toString(); $("#connectTxt").textContent = "disconnect"; $("#gateHint").classList.remove("err"); checkHolder(); }
+  catch (e) { $("#gateHint").textContent = "connection cancelled."; }
+};
+
+// ---------- live migrations (PumpPortal, free) ----------
+function pumpportal(delay) {
+  let ws; try { ws = new WebSocket("wss://pumpportal.fun/api/data"); } catch (e) { return; }
+  ws.onopen = () => { delay = 3e3; ws.send(JSON.stringify({ method: "subscribeMigration" })); $("#ppLine").textContent = "migrations feed: live (pumpportal)"; };
+  ws.onmessage = m => { let d; try { d = JSON.parse(m.data); } catch (e) { return; }
+    if (d.mint && d.txType === "migrate") { MIGS.unshift({ mint: d.mint, t: Date.now() }); MIGS.length = Math.min(MIGS.length, 30);
+      $("#ppLine").textContent = "migrations feed: " + MIGS.length + " seen since you opened this"; if (DATA) render(); } };
+  ws.onclose = () => { $("#ppLine").textContent = "migrations feed: reconnecting"; const next = Math.min(60e3, (delay || 3e3) * 2); setTimeout(() => pumpportal(next), delay || 3e3); };
+}
+
+// ---------- wiring ----------
+$("#rows").addEventListener("click", e => { const r = e.target.closest(".r[data-m]"); if (!r) return; SEL = r.dataset.m; render();
+  $("#coin").scrollIntoView({ behavior: reduce ? "auto" : "smooth" }); });
+$$(".bhd .chip").forEach(b => b.onclick = () => { const k = b.dataset.g ? "g" : "s"; filt[k] = b.dataset[k];
+  $$(`.bhd .chip[data-${k}]`).forEach(x => x.classList.toggle("on", x === b)); if (DATA) render(); });
+const secs = ["live", "log", "engine", "docs"].map(id => document.getElementById(id));
+addEventListener("scroll", () => { $("#top").classList.toggle("solid", scrollY > 10);
+  const cur = secs.filter(s => s.getBoundingClientRect().top < innerHeight * .4).pop();
+  $$(".nav a").forEach(a => a.classList.toggle("on", !!cur && a.getAttribute("href") === "#" + cur.id)); }, { passive: true });
+
+pull(); setInterval(pull, 7000);
+setInterval(() => { if (DATA && CONFIG.ca && !HOLDER && DATA.stretch.some(c => lockLeft(c, logBy()))) render(); }, 1000);
+pumpportal(); engineTx(); setInterval(engineTx, 90e3);
+</script>
+</body></html>

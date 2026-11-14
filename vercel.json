@@ -1,0 +1,5 @@
+{
+  "cleanUrls": true,
+  "functions": { "api/stretch.js": { "maxDuration": 10 } },
+  "headers": [{ "source": "/(.*)\\.png", "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }] }]
+}
