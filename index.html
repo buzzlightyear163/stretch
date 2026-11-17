@@ -436,7 +436,7 @@ footer.f2 .fine{display:flex;gap:24px;flex-wrap:wrap;margin-top:60px;font-size:1
     <div class="rows"><div><b class="acc">100%</b>of engine profit buys back $STRETCH</div><div><b>on-chain</b>every engine buy, sell and buyback, from one public wallet</div></div>
     <div class="facts">
       <div><div class="k">ticker</div><div class="v">$STRETCH</div></div><div><div class="k">chain</div><div class="v">solana</div></div>
-      <div><div class="k">launch</div><div class="v">launchlab</div></div><div><div class="k">supply</div><div class="v">1,000,000,000</div></div>
+      <div><div class="k">launch</div><div class="v" id="lpFact">launchlab</div></div><div><div class="k">supply</div><div class="v">1,000,000,000</div></div>
     </div>
     <div class="cabox"><span>ca</span><code id="ca">posted here and on X at launch</code><button class="chip" id="copy" hidden>copy</button></div>
     <div class="callout"><p>Your Final Stretch tab, on autopilot. <span>The checks are live today. Watch the log fill before you trust it.</span></p><a class="btn pri" href="#log">open the log</a></div>
@@ -464,7 +464,7 @@ footer.f2 .fine{display:flex;gap:24px;flex-wrap:wrap;margin-top:60px;font-size:1
 <footer class="f2"><div class="wrap">
   <div class="big">buys the final <b>stretch.</b><span class="cur"></span></div>
   <div class="ctas" style="margin-top:40px"><a class="btn pri" href="#live">open the board</a><a class="btn" href="#log">check the log</a></div>
-  <div class="fine"><span>$STRETCH · solana · raydium launchlab</span><span>not financial advice</span><span id="cafoot"></span></div>
+  <div class="fine"><span id="lpFoot">$STRETCH · solana · raydium launchlab</span><span>not financial advice</span><span id="cafoot"></span></div>
 </div></footer>
 
 <script>
@@ -821,7 +821,7 @@ if (typeof module !== "undefined") module.exports = TK;
 </script>
 <script>
 const CONFIG = {
-  ca: "",                 // $STRETCH contract address, posted at launch
+  ca: "DH9SFhbfdwPpCkACfJx9Xm2mu7mEQSUvPS9qcrhtpump", // $STRETCH contract address
   x: "",                  // X profile link, e.g. https://x.com/StretchBuys
   engineWallet: "",       // the public wallet the beta engine trades from
   gateSeconds: 20,        // how much later non-holders see a CLEAR call
@@ -839,7 +839,10 @@ const coinUrl = c => c.lp === "pump.fun" ? "https://pump.fun/coin/" + c.mint : c
 const srcTag = c => c.src === "pump" ? "PUMP" : c.lp === "letsbonk.fun" ? "LAB·BONK" : "LAB";
 
 // ---------- CA, buy links, X ----------
-const buyUrl = () => "https://raydium.io/launchpad/token/?mint=" + CONFIG.ca;
+// a CA ending in "pump" is a pump.fun coin, anything else is treated as raydium launchlab
+const ON_PUMP = /pump$/.test(CONFIG.ca || "");
+const buyUrl = () => ON_PUMP ? "https://pump.fun/coin/" + CONFIG.ca : "https://raydium.io/launchpad/token/?mint=" + CONFIG.ca;
+if (ON_PUMP) { $("#buy").textContent = "buy on pump.fun"; $("#lpFact").textContent = "pump.fun"; $("#lpFoot").textContent = "$STRETCH · solana · pump.fun"; }
 if (CONFIG.ca) { $("#ca").textContent = CONFIG.ca; $("#copy").hidden = false; $("#cafoot").textContent = "ca " + CONFIG.ca;
   $("#copy").onclick = () => navigator.clipboard.writeText(CONFIG.ca).then(() => $("#copy").textContent = "copied").catch(() => {});
   for (const s of ["#buy", "#buyTop"]) { $(s).href = buyUrl(); $(s).target = "_blank"; $(s).rel = "noopener"; } }
@@ -1039,7 +1042,7 @@ async function checkHolder() {
     $("#wLabel").innerHTML = `<b>${short(WALLET)}</b>&nbsp;· ${bal.toLocaleString("en-US", { maximumFractionDigits: 0 })} $STRETCH`;
     $("#gateHint").textContent = HOLDER ? "holder: you see every CLEAR call the second it fires." : "no $STRETCH in this wallet. calls reach you " + CONFIG.gateSeconds + "s after holders.";
     $("#gateHint").classList.toggle("err", !HOLDER);
-  } catch (e) { $("#gateHint").textContent = "couldn't read the balance right now. try again in a moment."; }
+  } catch (e) { $("#gateHint").textContent = /mint/i.test(String(e && e.message)) ? "$STRETCH isn't live on-chain yet. the gate opens the moment it is." : "couldn't read the balance right now. try again in a moment."; }
   if (DATA) render();
 }
 $("#connect").onclick = async () => {
