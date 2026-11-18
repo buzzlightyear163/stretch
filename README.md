@@ -14,7 +14,7 @@ Your Final Stretch tab, on autopilot. Every coin at 85%+ on its bonding curve ge
 
 ## Fill in at launch (top of the script in `index.html`, `CONFIG`)
 
-- `ca`: the $STRETCH contract address (set: DH9SFhbf…htpump). Turns on the buy buttons, the CA box and the holder gate. A CA ending in `pump` links to pump.fun, any other to Raydium LaunchLab.
+- `ca`: the $STRETCH contract address (set: LQaRWd9K…JNibvGc, Raydium LaunchLab). Turns on the buy buttons, the CA box and the holder gate. A CA ending in `pump` links to pump.fun, any other to Raydium LaunchLab.
 - `x`: the X profile link, e.g. `https://x.com/StretchBuys`.
 - `engineWallet`: the public wallet you trade from. The Engine section then shows its trades on-chain.
 
